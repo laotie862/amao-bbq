@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>阿毛烧烤 · 厨房看板</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #0a0a0a; --card: #1a1a1a; --border: #333;
+    --red: #e63946; --fire: #ff6b35; --gold: #f0d68a;
+    --text: #f0f0f0; --dim: #888; --new-bg: #1a0a0a;
+  }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    min-height: 100vh; overflow-x: hidden;
+    padding-bottom: 20px;
+  }
+
+  .header {
+    position: sticky; top: 0; z-index: 10;
+    background: linear-gradient(180deg, rgba(10,10,10,1) 60%, transparent);
+    padding: 16px 20px 12px;
+    display: flex; justify-content: space-between; align-items: flex-end;
+  }
+  .header .title { font-size: 28px; font-weight: 900; letter-spacing: 4px; }
+  .header .title em { color: var(--fire); font-style: normal; }
+  .header .info { font-size: 13px; color: var(--dim); }
+  .header .info .dot { color: #4ade80; animation: blink 1s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  #order-board {
+    padding: 0 16px;
+    display: flex; flex-wrap: wrap; gap: 12px;
+    justify-content: center;
+  }
+
+  .order-card {
+    background: var(--card);
+    border: 2px solid var(--border);
+    border-radius: 16px; padding: 20px 24px;
+    min-width: 280px; max-width: 400px; flex: 1;
+    animation: slideIn 0.4s ease;
+    position: relative;
+  }
+  .order-card.new {
+    border-color: var(--fire);
+    background: var(--new-bg);
+    box-shadow: 0 0 40px rgba(255,107,53,0.2);
+    animation: slideIn 0.3s ease, glow 2s ease-in-out 3;
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-20px) scale(0.95); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes glow {
+    0%,100% { box-shadow: 0 0 20px rgba(255,107,53,0.1); }
+    50%     { box-shadow: 0 0 60px rgba(255,107,53,0.4); }
+  }
+
+  .order-no {
+    font-size: 36px; font-weight: 900; color: var(--fire);
+    letter-spacing: 3px; margin-bottom: 12px;
+  }
+  .order-no .tag {
+    font-size: 12px; background: var(--red); color: #fff;
+    padding: 3px 10px; border-radius: 6px;
+    vertical-align: middle; margin-left: 10px;
+  }
+  .order-items {
+    font-size: 22px; line-height: 1.8;
+    color: var(--text); margin-bottom: 14px;
+    border-bottom: 1px dashed var(--border);
+    padding-bottom: 14px;
+  }
+  .order-items span { display: inline-block; margin-right: 6px; }
+  .order-foot {
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .order-total {
+    font-size: 32px; font-weight: 900;
+    color: var(--gold);
+  }
+  .order-time {
+    font-size: 14px; color: var(--dim);
+  }
+
+  .order-actions {
+    margin-top: 10px; display: flex; gap: 8px;
+  }
+  .btn-done, .btn-cancel {
+    flex: 1; border: none; border-radius: 8px; padding: 8px 0;
+    font-size: 16px; font-weight: 700; cursor: pointer;
+    letter-spacing: 2px; transition: all 0.15s;
+  }
+  .btn-done { background: #166534; color: #4ade80; }
+  .btn-done:active { background: #22c55e; color: #000; }
+  .btn-cancel { background: #450a0a; color: #fca5a5; }
+  .btn-cancel:active { background: #dc2626; color: #fff; }
+
+  .order-card.done { opacity: 0.5; border-color: #4ade80; }
+
+  .empty-state {
+    text-align: center; padding: 80px 20px; color: var(--dim);
+  }
+  .empty-state .icon { font-size: 80px; margin-bottom: 20px; opacity: 0.3; }
+  .empty-state .msg  { font-size: 20px; }
+
+  .sound-toggle {
+    position: fixed; bottom: 20px; right: 20px;
+    width: 48px; height: 48px; border-radius: 50%;
+    background: var(--card); border: 1px solid var(--border);
+    color: var(--dim); font-size: 22px;
+    cursor: pointer; z-index: 100;
+    display: flex; align-items: center; justify-content: center;
+    transition: 0.3s;
+  }
+  .sound-toggle.on { background: var(--red); color: #fff; border-color: var(--red); }
+
+  #new-order-toast {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+    background: var(--red); color: #fff;
+    text-align: center; padding: 16px; font-size: 20px; font-weight: 900;
+    transform: translateY(-100%); transition: transform 0.3s ease;
+  }
+  #new-order-toast.show { transform: translateY(0); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="title"><em>🔥</em> 阿毛厨房 <em>🔥</em></div>
+  <div class="info"><span class="dot">●</span> 实时在线 · <span id="count">0</span> 单</div>
+</div>
+
+<div id="order-board"></div>
+
+<div class="empty-state" id="empty">
+  <div class="icon">🍖</div>
+  <div class="msg">等待订单中...<br>客人扫码点单后会立即显示</div>
+</div>
+
+<div id="new-order-toast">🛎️ 新订单！</div>
+
+<button class="sound-toggle on" id="soundBtn" onclick="toggleSound()">🔊</button>
+
+<script>
+// Supabase
+const supabase = window.supabase.createClient(
+  'https://kpdzliicwddunewzhwqm.supabase.co',
+  'sb_publishable_mtif-iW5dFnU2FZWjPyJMA_fEZhfjNh'
+);
+
+const POLL_INTERVAL = 2000;
+let soundOn = true;
+let knownOrders = new Set();
+
+function toggleSound() {
+  soundOn = !soundOn;
+  document.getElementById('soundBtn').textContent = soundOn ? '🔊' : '🔇';
+  document.getElementById('soundBtn').classList.toggle('on', soundOn);
+}
+
+function beep() {
+  if (!soundOn) return;
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(800, ctx.currentTime);
+    osc.frequency.setValueAtTime(1200, ctx.currentTime + 0.1);
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.5);
+  } catch(e) {}
+}
+
+function showToast() {
+  const t = document.getElementById('new-order-toast');
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function formatId(id) {
+  // id is timestamp like 1718840000000 -> show last 6 digits
+  return '#' + String(id).slice(-6);
+}
+
+function renderOrders(orders) {
+  const board = document.getElementById('order-board');
+  const empty = document.getElementById('empty');
+  const countEl = document.getElementById('count');
+
+  countEl.textContent = orders.length;
+
+  if (!orders.length) {
+    empty.style.display = 'block';
+    board.innerHTML = '';
+    return;
+  }
+  empty.style.display = 'none';
+
+  board.innerHTML = orders.map((o) => {
+    const isNew = !knownOrders.has(o.id);
+    const cls = o.status === 'done' ? 'order-card done' : (isNew ? 'order-card new' : 'order-card');
+    return `
+      <div class="${cls}" data-id="${o.id}">
+        <div class="order-no">
+          ${formatId(o.id)}
+          ${o.status === 'done' ? '<span class="tag" style="background:#166534;color:#4ade80">完成</span>' : ''}
+          ${isNew && o.status !== 'done' ? '<span class="tag">新</span>' : ''}
+          ${o.status === 'cancelled' ? '<span class="tag" style="background:#450a0a;color:#fca5a5">已取消</span>' : ''}
+        </div>
+        <div class="order-items">
+          ${(o.items||[]).map(i => `<span>${i.n} ×1</span>`).join('')}
+        </div>
+        <div class="order-foot">
+          <span class="order-total">¥${o.total}</span>
+          <span class="order-time">${o.time||''}</span>
+        </div>
+        ${o.status === 'new' || !o.status ? `
+        <div class="order-actions">
+          <button class="btn-done" onclick="updateOrder(${o.id},'done')">✅ 完成</button>
+          <button class="btn-cancel" onclick="updateOrder(${o.id},'cancelled')">✕ 取消</button>
+        </div>
+        ` : ''}
+      </div>
+    `;
+  }).join('');
+
+  orders.forEach(o => knownOrders.add(o.id));
+}
+
+async function updateOrder(id, status) {
+  try {
+    await supabase.from('orders').update({ status }).eq('id', id);
+    poll();
+  } catch(e) {}
+}
+
+async function poll() {
+  try {
+    const { data: orders, error } = await supabase.from('orders')
+      .select('*')
+      .neq('status', 'cancelled')
+      .order('id', { ascending: false })
+      .limit(50);
+
+    if (error || !orders) return;
+
+    const newOrders = orders.filter(o => !knownOrders.has(o.id));
+    if (newOrders.length > 0) {
+      beep();
+      showToast();
+    }
+
+    renderOrders(orders);
+  } catch(e) {}
+}
+
+// Start
+poll();
+setInterval(poll, POLL_INTERVAL);
+
+document.addEventListener('click', () => {
+  if (window.AudioContext || window.webkitAudioContext) {
+    new (window.AudioContext || window.webkitAudioContext)();
+  }
+}, { once: true });
+</script>
+</body>
+</html>
