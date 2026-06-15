@@ -99,7 +99,15 @@
   .btn-cancel { background: #450a0a; color: #fca5a5; }
   .btn-cancel:active { background: #dc2626; color: #fff; }
 
-  .order-card.done { opacity: 0.5; border-color: #4ade80; }
+  .order-card.done { border-color: #4ade80; background: #0a1a0a; }
+  .order-card.done::after { content: '✅ 已完成'; position: absolute; top: 10px; right: 14px; font-size: 14px; opacity: 0.7; pointer-events: none; }
+  .order-card.done .order-items { text-decoration: line-through; text-decoration-color: rgba(255,255,255,0.2); }
+  .order-card.done .order-actions { display: none; }
+
+  .order-card.cancelled { border-color: #ef4444; background: #1a0a0a; opacity: 0.55; }
+  .order-card.cancelled::after { content: '✕ 已取消'; position: absolute; top: 10px; right: 14px; font-size: 14px; color: #fca5a5; pointer-events: none; }
+  .order-card.cancelled .order-items { text-decoration: line-through; text-decoration-color: rgba(252,165,165,0.3); }
+  .order-card.cancelled .order-actions { display: none; }
 
   .empty-state {
     text-align: center; padding: 80px 20px; color: var(--dim);
@@ -162,7 +170,8 @@ const POLL_INTERVAL = 2000;
 let soundOn = true;
 let knownOrders = new Set();
 let hiddenOrders = JSON.parse(localStorage.getItem('amao_kitchen_hidden') || '[]'); // [{id, action}]
-let hiddenIds = new Set(hiddenOrders.map(h => h.id));
+let orderStatuses = new Map();
+try { const saved = JSON.parse(localStorage.getItem('amao_kitchen_status') || '[]'); saved.forEach(s => orderStatuses.set(s.id, s.status)); } catch(e) {}
 
 function toggleSound() {
   soundOn = !soundOn;
@@ -201,35 +210,40 @@ function fmtTime(iso) {
 function fmtId(id) { return '#' + String(id).slice(-6); }
 
 function markOrder(id, action) {
-  hiddenOrders.push({ id, action, time: new Date().toISOString() });
-  localStorage.setItem('amao_kitchen_hidden', JSON.stringify(hiddenOrders.slice(-100)));
-  hiddenIds.add(id);
-  poll();
+  orderStatuses.set(id, action);
+  const arr = Array.from(orderStatuses.entries()).map(([i, s]) => ({ id: i, status: s }));
+  localStorage.setItem('amao_kitchen_status', JSON.stringify(arr.slice(-100)));
+  if (currentOrders) renderOrders(currentOrders);
 }
+let currentOrders = null;
 
 function renderOrders(orders) {
   const board = document.getElementById('order-board');
   const empty = document.getElementById('empty');
   const countEl = document.getElementById('count');
 
-  // Filter out hidden (done/cancelled)
-  const visible = orders.filter(o => !hiddenIds.has(o.id));
-  countEl.textContent = visible.length;
+  countEl.textContent = orders.length;
 
-  if (!visible.length) {
+  if (!orders.length) {
     empty.style.display = 'block';
     board.innerHTML = '';
     return;
   }
   empty.style.display = 'none';
 
-  board.innerHTML = visible.map((o) => {
+  board.innerHTML = orders.map((o) => {
     const isNew = !knownOrders.has(o.id);
+    const status = orderStatuses.get(o.id);
+    let cls = 'order-card';
+    if (status === 'done') cls += ' done';
+    else if (status === 'cancelled') cls += ' cancelled';
+    else if (isNew) cls += ' new';
+
     return `
-      <div class="order-card${isNew ? ' new' : ''}" data-id="${o.id}">
+      <div class="${cls}" data-id="${o.id}">
         <div class="order-no">
           ${fmtId(o.id)}
-          ${isNew ? '<span class="tag">新</span>' : ''}
+          ${isNew && !status ? '<span class="tag">新</span>' : ''}
         </div>
         <div class="order-items">
           ${(o.items||[]).map(i => `<span>${i.n} ×1</span>`).join('')}
@@ -238,10 +252,12 @@ function renderOrders(orders) {
           <span class="order-total">¥${o.total}</span>
           <span class="order-time">${fmtTime(o.created_at)}</span>
         </div>
+        ${!status ? `
         <div class="order-actions">
           <button class="btn-done" onclick="markOrder(${o.id},'done')">✅ 完成</button>
           <button class="btn-cancel" onclick="markOrder(${o.id},'cancelled')">✕ 取消</button>
         </div>
+        ` : ''}
       </div>
     `;
   }).join('');
@@ -252,8 +268,9 @@ function renderOrders(orders) {
 async function poll() {
   try {
     const orders = await sbQuery('select=*&order=id.desc&limit=50');
+    currentOrders = orders;
 
-    const newOrders = orders.filter(o => !knownOrders.has(o.id) && !hiddenIds.has(o.id));
+    const newOrders = orders.filter(o => !knownOrders.has(o.id) && !orderStatuses.has(o.id));
     if (newOrders.length > 0) { beep(); showToast(); }
 
     renderOrders(orders);
