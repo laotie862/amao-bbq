@@ -580,7 +580,7 @@
 <body>
 
 <!-- LOADING -->
-<div id="loading">
+<div id="loading" onclick="this.classList.add('hide')">
   <div class="lf-container">
     <div class="log"></div><div class="log"></div><div class="log"></div>
     <div class="lf"></div><div class="lf"></div><div class="lf"></div><div class="lf"></div>
@@ -875,14 +875,12 @@
     });
   });
 
-  // ===== SUPABASE (lazy init, won't block page load) =====
-  const SUPABASE_URL = 'https://kpdzliicwddunewzhwqm.supabase.co';
-  const SUPABASE_KEY = 'sb_publishable_mtif-iW5dFnU2FZWjPyJMA_fEZhfjNh';
-  let _supabase = null;
-  function getSupabase() {
-    if (_supabase) return _supabase;
-    try { if (window.supabase) _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e) {}
-    return _supabase;
+  // ===== SUPABASE API (pure fetch, no SDK needed) =====
+  const SB_URL = 'https://kpdzliicwddunewzhwqm.supabase.co/rest/v1/orders';
+  const SB_KEY = 'sb_publishable_mtif-iW5dFnU2FZWjPyJMA_fEZhfjNh';
+  const SB_HEADERS = { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' };
+  function sbInsert(order) {
+    return fetch(SB_URL, { method: 'POST', headers: SB_HEADERS, body: JSON.stringify(order) }).then(r => r.ok ? r.json() : Promise.reject(r.status));
   }
 
   // ===== CART =====
@@ -923,12 +921,7 @@
       alert(`🔥 订单已记录！\n\n${names}\n共计 ¥${total}\n\n⚠️ 网络不稳定，请告知阿毛`);
     };
 
-    const sb = getSupabase();
-    if (sb) {
-      sb.from('orders').insert(order).then(({ error }) => { error ? fail() : success(); });
-    } else {
-      fail();
-    }
+    sbInsert(order).then(() => success()).catch(() => fail());
     cart = [];
     updateCart();
   }
@@ -1053,8 +1046,7 @@
 
   setTimeout(() => {
     document.getElementById('loading').classList.add('hide');
-  }, 1800);
+  }, 500);  // instant: only show loading for 0.5s
 </script>
-<script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </body>
 </html>

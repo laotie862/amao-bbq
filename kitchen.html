@@ -146,11 +146,17 @@
 <button class="sound-toggle on" id="soundBtn" onclick="toggleSound()">🔊</button>
 
 <script>
-// Supabase
-const supabase = window.supabase.createClient(
-  'https://kpdzliicwddunewzhwqm.supabase.co',
-  'sb_publishable_mtif-iW5dFnU2FZWjPyJMA_fEZhfjNh'
-);
+// Supabase via fetch (no SDK needed)
+const SB_URL = 'https://kpdzliicwddunewzhwqm.supabase.co/rest/v1/orders';
+const SB_KEY = 'sb_publishable_mtif-iW5dFnU2FZWjPyJMA_fEZhfjNh';
+const SB_HDR = { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY };
+function sbQuery(params) {
+  let url = SB_URL + '?' + params;
+  return fetch(url, { headers: SB_HDR }).then(r => r.json());
+}
+function sbUpdate(id, data) {
+  return fetch(SB_URL + '?id=eq.' + id, { method: 'PATCH', headers: Object.assign({'Content-Type':'application/json','Prefer':'return=minimal'}, SB_HDR), body: JSON.stringify(data) });
+}
 
 const POLL_INTERVAL = 2000;
 let soundOn = true;
@@ -245,12 +251,7 @@ function renderOrders(orders) {
 
 async function poll() {
   try {
-    const { data: orders, error } = await supabase.from('orders')
-      .select('*')
-      .order('id', { ascending: false })
-      .limit(50);
-
-    if (error || !orders) return;
+    const orders = await sbQuery('select=*&order=id.desc&limit=50');
 
     const newOrders = orders.filter(o => !knownOrders.has(o.id) && !hiddenIds.has(o.id));
     if (newOrders.length > 0) { beep(); showToast(); }
@@ -266,6 +267,5 @@ document.addEventListener('click', () => {
   if (window.AudioContext || window.webkitAudioContext) { new (window.AudioContext || window.webkitAudioContext)(); }
 }, { once: true });
 </script>
-<script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </body>
 </html>
