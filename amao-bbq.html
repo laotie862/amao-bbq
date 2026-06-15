@@ -1,0 +1,1118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>阿毛烧烤 · 山火点单</title>
+<link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=ZCOOL+KuaiLe&family=Noto+Serif+SC:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #1a1209;
+    --bg2: #241a0e;
+    --card: #2c2012;
+    --card-border: rgba(255,255,255,0.06);
+    --fuzhou-red: #c43929;
+    --fuzhou-red-dark: #8a281e;
+    --fire: #e8631a;
+    --fire-glow: #ff6b35;
+    --gold: #d4a857;
+    --gold-light: #f0d68a;
+    --text: #f0e6d3;
+    --text-dim: #a0907a;
+    --text-dimmer: #73634a;
+    --leather: #6b5035;
+    --ink: #3a2a1a;
+  }
+  body {
+    font-family: 'ZCOOL KuaiLe', 'PingFang SC', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    max-width: 420px;
+    margin: 0 auto;
+    overflow-x: hidden;
+    padding-bottom: 80px;
+  }
+  ::-webkit-scrollbar { width: 3px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--leather); border-radius: 2px; }
+
+  /* ===== LOADING ===== */
+  #loading {
+    position: fixed; inset: 0; z-index: 9999;
+    background: var(--bg);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    transition: opacity 0.6s;
+  }
+  #loading.hide { opacity: 0; pointer-events: none; }
+  .loading-fire {
+    width: 100px; height: 100px;
+    position: relative; margin-bottom: 20px;
+  }
+  .loading-fire .charcoal {
+    position: absolute; bottom: 0;
+    width: 14px; height: 40px;
+    background: var(--leather); border-radius: 3px;
+  }
+  .loading-fire .charcoal:nth-child(1) { left: 20px; transform: rotate(-15deg); }
+  .loading-fire .charcoal:nth-child(2) { left: 40px; transform: rotate(5deg); }
+  .loading-fire .charcoal:nth-child(3) { left: 60px; transform: rotate(15deg); }
+  .loading-fire .charcoal:nth-child(4) { left: 30px; bottom: -5px; height: 30px; transform: rotate(-25deg); opacity: 0.6; }
+  .loading-fire .charcoal:nth-child(5) { left: 55px; bottom: -3px; height: 35px; transform: rotate(20deg); opacity: 0.6; }
+  .lf {
+    position: absolute; bottom: 35px; left: 50%;
+    width: 14px; height: 28px;
+    background: var(--fire);
+    border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+    animation: lflicker 0.35s ease-in-out infinite alternate;
+    box-shadow: 0 0 24px var(--fire-glow), 0 0 50px rgba(255,107,53,0.2);
+  }
+  .lf:nth-child(6) { left: 42%; width: 10px; height: 18px; animation-delay: 0.12s; opacity: 0.7; }
+  .lf:nth-child(7) { left: 58%; width: 11px; height: 22px; animation-delay: 0.25s; opacity: 0.6; }
+  .lf:nth-child(8) { left: 50%; width: 7px; height: 12px; animation-delay: 0.08s; opacity: 0.5; bottom: 42px; }
+  @keyframes lflicker {
+    0% { transform: translateX(-50%) scaleY(1); }
+    100% { transform: translateX(-50%) scaleY(1.25) translateY(-4px); }
+  }
+  .loading-text {
+    font-family: 'Ma Shan Zheng', cursive;
+    font-size: 20px; color: var(--text-dim);
+    letter-spacing: 4px;
+    animation: lpulse 1s ease-in-out infinite;
+  }
+  @keyframes lpulse {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+  }
+
+  /* ===== TAB CONTENT ===== */
+  .tab-content { display: none; padding: 0 0 20px; }
+  .tab-content.active { display: block; }
+
+  /* ===== HEADER ===== */
+  .header {
+    position: sticky; top: 0; z-index: 100;
+    background: linear-gradient(180deg, var(--bg) 70%, transparent);
+    padding: 14px 16px 8px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .header-left {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .header-logo {
+    font-family: 'Ma Shan Zheng', cursive;
+    font-size: 28px;
+    background: linear-gradient(135deg, var(--gold-light), var(--fuzhou-red));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: 2px;
+  }
+  .header-logo small {
+    font-size: 12px;
+    -webkit-text-fill-color: var(--text-dim);
+    letter-spacing: 1px;
+    font-family: 'ZCOOL KuaiLe', sans-serif;
+  }
+  .header-status {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--text-dim);
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    padding: 4px 12px; border-radius: 20px;
+  }
+  .header-status .fire-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--fire);
+    box-shadow: 0 0 8px var(--fire-glow);
+    animation: ember 1.2s ease-in-out infinite;
+  }
+  @keyframes ember {
+    0%, 100% { box-shadow: 0 0 6px var(--fire-glow); }
+    50% { box-shadow: 0 0 14px var(--fire-glow), 0 0 24px rgba(255,107,53,0.3); }
+  }
+
+  /* ===== TAB 1: ORDER ===== */
+  .hero-dish {
+    margin: 4px 16px 12px;
+    border-radius: 16px;
+    overflow: hidden;
+    position: relative;
+    background: linear-gradient(145deg, #2c2012, #1a1209);
+    border: 1px solid rgba(196,57,41,0.2);
+    padding: 16px;
+  }
+  .hero-dish .badge {
+    display: inline-block;
+    background: var(--fuzhou-red);
+    color: var(--text);
+    font-size: 11px; padding: 2px 10px; border-radius: 10px;
+    margin-bottom: 8px;
+  }
+  .hero-dish .name {
+    font-family: 'Ma Shan Zheng', cursive;
+    font-size: 24px;
+    color: var(--gold-light);
+    margin-bottom: 4px;
+  }
+  .hero-dish .name em {
+    font-style: normal;
+    color: var(--fire);
+  }
+  .hero-dish .desc {
+    font-size: 13px; color: var(--text-dimmer);
+    line-height: 1.6;
+  }
+  .hero-dish .fire-anim {
+    position: absolute; top: 16px; right: 20px;
+    font-size: 36px;
+    animation: herofire 1s ease-in-out infinite alternate;
+  }
+  @keyframes herofire {
+    0% { transform: scale(1) rotate(-5deg); }
+    100% { transform: scale(1.15) rotate(5deg); }
+  }
+  .hero-dish .price-tag {
+    display: inline-block;
+    margin-top: 8px;
+    color: var(--fire);
+    font-size: 20px;
+    font-family: 'Ma Shan Zheng', cursive;
+  }
+
+  .cat-tabs {
+    display: flex; gap: 6px; padding: 4px 16px 8px; overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .cat-tabs::-webkit-scrollbar { display: none; }
+  .cat-tab {
+    flex-shrink: 0;
+    padding: 6px 16px;
+    border-radius: 16px;
+    font-size: 13px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    color: var(--text-dim);
+    cursor: pointer; transition: all 0.3s;
+    white-space: nowrap;
+  }
+  .cat-tab.active {
+    background: var(--fuzhou-red);
+    border-color: var(--fuzhou-red);
+    color: var(--text);
+  }
+
+  .menu-list { padding: 4px 16px 100px; }
+  .menu-item {
+    display: flex; gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .menu-item:active { opacity: 0.7; }
+  .menu-item .thumb {
+    width: 72px; height: 72px;
+    border-radius: 10px;
+    flex-shrink: 0;
+    background-size: cover;
+    background-position: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .menu-item .thumb .tag {
+    position: absolute; top: 3px; right: 3px;
+    font-size: 9px;
+    background: var(--fuzhou-red);
+    color: var(--text);
+    padding: 1px 6px; border-radius: 6px;
+  }
+  .menu-item .info { flex: 1; min-width: 0; }
+  .menu-item .name {
+    font-size: 15px; color: var(--text);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .menu-item .name .story-icon {
+    font-size: 12px; opacity: 0.5;
+  }
+  .menu-item .origin {
+    font-size: 11px; color: var(--text-dimmer);
+    margin-top: 1px;
+  }
+  .menu-item .price-row {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 4px;
+  }
+  .menu-item .price {
+    color: var(--fire); font-size: 16px;
+  }
+  .menu-item .price small { font-size: 11px; color: var(--text-dimmer); }
+  .menu-item .add-btn {
+    width: 26px; height: 26px; border-radius: 50%;
+    border: 1px solid var(--fuzhou-red);
+    background: transparent;
+    color: var(--fuzhou-red);
+    font-size: 16px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+    line-height: 1;
+  }
+  .menu-item .add-btn:active {
+    background: var(--fuzhou-red);
+    color: var(--text);
+  }
+
+  /* ===== TAB 2: ABOUT ===== */
+  .about-hero {
+    margin: 8px 16px 12px;
+    padding: 20px 16px 16px;
+    border-radius: 16px;
+    background: linear-gradient(145deg, rgba(196,57,41,0.08), transparent);
+    border: 1px solid rgba(196,57,41,0.15);
+    text-align: center;
+  }
+  .about-hero .brand {
+    font-family: 'Ma Shan Zheng', cursive;
+    font-size: 36px;
+    background: linear-gradient(135deg, var(--gold-light), var(--fuzhou-red));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .about-hero .sub {
+    font-size: 13px; color: var(--text-dim);
+    margin-top: 4px;
+    letter-spacing: 2px;
+  }
+  .about-hero .slogan {
+    margin-top: 10px;
+    font-size: 13px; color: var(--text-dimmer);
+    line-height: 1.6;
+  }
+  .about-hero .slogan em {
+    color: var(--fire);
+    font-style: normal;
+  }
+
+  .tl { padding: 8px 16px 4px; }
+  .tl-item {
+    display: flex; gap: 14px;
+    padding: 12px 0;
+    border-left: 2px solid var(--fuzhou-red);
+    padding-left: 16px;
+    margin-left: 8px;
+    position: relative;
+  }
+  .tl-item::before {
+    content: '';
+    position: absolute; left: -5px; top: 16px;
+    width: 8px; height: 8px;
+    background: var(--fuzhou-red);
+    border-radius: 50%;
+    box-shadow: 0 0 8px rgba(196,57,41,0.4);
+  }
+  .tl-item:last-child { border-left-color: transparent; }
+  .tl-item .year {
+    font-family: 'Ma Shan Zheng', cursive;
+    font-size: 18px;
+    color: var(--fire);
+    flex-shrink: 0;
+    width: 52px;
+  }
+  .tl-item .desc {
+    font-size: 13px; color: var(--text-dim);
+    line-height: 1.6;
+  }
+  .tl-item .desc strong { color: var(--text); }
+
+  .famous-scroll {
+    display: flex; gap: 12px;
+    padding: 4px 16px 12px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .famous-scroll::-webkit-scrollbar { display: none; }
+  .famous-card {
+    flex-shrink: 0;
+    width: 140px;
+    padding: 12px;
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .famous-card:active { border-color: var(--fuzhou-red); transform: scale(0.96); }
+  .famous-card .avatar {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    margin: 0 auto 6px;
+    background-size: cover;
+    background-position: center;
+    border: 2px solid rgba(196,57,41,0.2);
+  }
+  .famous-card .name { font-size: 13px; color: var(--text); }
+  .famous-card .title { font-size: 10px; color: var(--text-dimmer); margin-top: 1px; }
+  .famous-card .quote { font-size: 10px; color: var(--text-dimmer); margin-top: 4px; opacity: 0.6; }
+
+  .wine-section { margin: 4px 16px 16px; }
+  .wine-section .wi {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 12px;
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    margin-bottom: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .wine-section .wi:active { border-color: var(--fuzhou-red); }
+  .wine-section .wi .icon { font-size: 22px; flex-shrink: 0; }
+  .wine-section .wi .info { flex: 1; }
+  .wine-section .wi .name { font-size: 13px; color: var(--text); }
+  .wine-section .wi .note { font-size: 11px; color: var(--text-dimmer); }
+  .wine-section .wi .pr { color: var(--fire); font-size: 14px; }
+
+  /* ===== TAB 3: EVENTS ===== */
+  .event-hero {
+    margin: 8px 16px 12px;
+    padding: 18px 16px;
+    border-radius: 16px;
+    background: linear-gradient(145deg, rgba(196,57,41,0.06), transparent);
+    border: 1px solid rgba(196,57,41,0.12);
+  }
+  .event-hero .title {
+    font-family: 'Ma Shan Zheng', cursive;
+    font-size: 24px;
+    color: var(--gold-light);
+  }
+  .event-hero .sub {
+    font-size: 13px; color: var(--text-dimmer);
+    margin-top: 4px;
+    line-height: 1.6;
+  }
+  .event-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    padding: 4px 16px;
+  }
+  .event-card {
+    padding: 16px 12px;
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .event-card:active { border-color: var(--fuzhou-red); transform: scale(0.96); }
+  .event-card .emoji { font-size: 28px; margin-bottom: 6px; }
+  .event-card .name { font-size: 14px; color: var(--text); }
+  .event-card .price { font-size: 12px; color: var(--fire); margin-top: 2px; }
+  .event-card .includes { font-size: 11px; color: var(--text-dimmer); margin-top: 4px; line-height: 1.5; }
+
+  .event-form {
+    margin: 12px 16px;
+    padding: 16px;
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+  }
+  .event-form .form-title {
+    font-family: 'Ma Shan Zheng', cursive;
+    font-size: 18px;
+    color: var(--gold-light);
+    margin-bottom: 12px;
+  }
+  .event-form input, .event-form select, .event-form textarea {
+    width: 100%;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 13px;
+    color: var(--text);
+    margin-bottom: 8px;
+    outline: none;
+    font-family: 'ZCOOL KuaiLe', sans-serif;
+  }
+  .event-form input:focus, .event-form select:focus, .event-form textarea:focus {
+    border-color: var(--fuzhou-red);
+  }
+  .event-form select option { background: var(--bg); }
+  .event-form textarea { height: 60px; resize: none; }
+  .event-form .submit-btn {
+    width: 100%;
+    background: linear-gradient(135deg, var(--fuzhou-red), var(--fuzhou-red-dark));
+    border: none;
+    color: var(--text);
+    padding: 12px;
+    border-radius: 10px;
+    font-family: 'Ma Shan Zheng', cursive;
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 2px;
+  }
+  .event-form .submit-btn:active { transform: scale(0.97); }
+
+  /* ===== TAB 4: BOSS ===== */
+  .boss-header {
+    margin: 8px 16px 12px;
+    padding: 20px 16px;
+    border-radius: 16px;
+    background: linear-gradient(145deg, rgba(196,57,41,0.06), transparent);
+    border: 1px solid rgba(196,57,41,0.1);
+    text-align: center;
+  }
+  .boss-header .avatar-lg {
+    width: 80px; height: 80px;
+    border-radius: 50%;
+    margin: 0 auto 10px;
+    background: linear-gradient(135deg, var(--leather), var(--bg));
+    border: 2px solid var(--fuzhou-red);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 40px;
+  }
+  .boss-header .name {
+    font-family: 'Ma Shan Zheng', cursive;
+    font-size: 28px;
+    color: var(--gold-light);
+  }
+  .boss-header .nick {
+    font-size: 13px; color: var(--text-dimmer);
+    margin-top: 2px;
+  }
+  .boss-header .tags {
+    display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;
+    margin-top: 10px;
+  }
+  .boss-header .tags span {
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    color: var(--text-dim);
+  }
+
+  .boss-story-box {
+    margin: 4px 16px 12px;
+    padding: 14px;
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    position: relative;
+  }
+  .boss-story-box .label {
+    font-family: 'Ma Shan Zheng', cursive;
+    font-size: 16px;
+    color: var(--gold-light);
+    margin-bottom: 8px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .boss-story-box .label .play {
+    font-size: 13px; color: var(--fuzhou-red);
+    cursor: pointer;
+  }
+  .boss-story-box .text {
+    font-size: 13px; color: var(--text-dim);
+    line-height: 1.8;
+  }
+  .boss-story-box .text em { color: var(--fire); font-style: normal; }
+
+  .boss-gallery {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 4px 16px 12px;
+  }
+  .boss-gallery .pic {
+    aspect-ratio: 4/3;
+    border-radius: 10px;
+    background-size: cover;
+    background-position: center;
+    border: 1px solid var(--card-border);
+    display: flex; align-items: flex-end;
+    padding: 8px;
+    font-size: 11px;
+    color: var(--text);
+    background-blend-mode: overlay;
+  }
+  .boss-gallery .pic .cap {
+    background: rgba(0,0,0,0.6);
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 10px;
+  }
+
+  /* ===== BOTTOM TAB BAR ===== */
+  .tab-bar {
+    position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 100%; max-width: 420px;
+    background: linear-gradient(180deg, rgba(26,18,9,0.85), var(--bg));
+    backdrop-filter: blur(20px);
+    border-top: 1px solid rgba(255,255,255,0.06);
+    display: flex;
+    z-index: 200;
+    padding: 6px 0 env(safe-area-inset-bottom, 6px);
+  }
+  .tab-btn {
+    flex: 1;
+    text-align: center;
+    padding: 6px 0 2px;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+    background: none;
+    color: var(--text-dim);
+    font-family: 'ZCOOL KuaiLe', sans-serif;
+    position: relative;
+  }
+  .tab-btn .icon { font-size: 22px; display: block; margin-bottom: 0; }
+  .tab-btn .label { font-size: 11px; }
+  .tab-btn.active { color: var(--fuzhou-red); }
+  .tab-btn.active::after {
+    content: '';
+    position: absolute; top: -1px; left: 50%; transform: translateX(-50%);
+    width: 24px; height: 2px;
+    background: var(--fuzhou-red);
+    border-radius: 2px;
+  }
+  .tab-btn .cart-badge {
+    position: absolute; top: 0; right: 50%; transform: translateX(14px);
+    background: var(--fuzhou-red);
+    color: var(--text);
+    font-size: 10px;
+    min-width: 16px; height: 16px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0 4px;
+  }
+
+  /* ===== MODAL ===== */
+  .modal {
+    position: fixed; inset: 0; z-index: 300;
+    display: none;
+    align-items: center; justify-content: center;
+    padding: 30px 16px;
+  }
+  .modal.show { display: flex; }
+  .modal .overlay {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px);
+  }
+  .modal .box {
+    position: relative;
+    background: var(--bg2);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
+    padding: 24px 20px;
+    max-width: 340px;
+    width: 100%;
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+  .modal .box .close {
+    position: absolute; top: 10px; right: 14px;
+    font-size: 18px; color: var(--text-dim);
+    cursor: pointer; background: none; border: none;
+  }
+  .modal .box .mtitle {
+    font-family: 'Ma Shan Zheng', cursive;
+    font-size: 20px;
+    color: var(--gold-light);
+    margin-bottom: 10px;
+  }
+  .modal .box .mbody {
+    font-size: 13px; color: var(--text-dim);
+    line-height: 1.8;
+  }
+  .modal .box .mbody em { color: var(--fire); font-style: normal; }
+
+  /* ===== CART TOAST ===== */
+  .cart-toast {
+    position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%);
+    background: var(--fuzhou-red);
+    color: var(--text);
+    padding: 10px 24px;
+    border-radius: 20px;
+    font-size: 14px;
+    z-index: 150;
+    opacity: 0;
+    transition: all 0.3s;
+    pointer-events: none;
+    white-space: nowrap;
+    box-shadow: 0 4px 20px rgba(196,57,41,0.3);
+  }
+  .cart-toast.show { opacity: 1; bottom: 100px; }
+
+  /* ===== CART PANEL ===== */
+  .cart-panel {
+    position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 100%; max-width: 420px;
+    background: var(--bg2);
+    border-top: 1px solid rgba(255,255,255,0.08);
+    z-index: 180;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    display: none;
+    align-items: center; justify-content: space-between;
+    backdrop-filter: blur(16px);
+  }
+  .cart-panel.show { display: flex; }
+  .cart-panel .info { font-size: 13px; color: var(--text-dim); }
+  .cart-panel .info strong { color: var(--text); }
+  .cart-panel .total { color: var(--fire); font-size: 20px; font-family: 'Ma Shan Zheng', cursive; }
+  .cart-panel .fire-btn {
+    background: linear-gradient(135deg, var(--fuzhou-red), var(--fuzhou-red-dark));
+    border: none; color: var(--text);
+    padding: 10px 24px;
+    border-radius: 12px;
+    font-family: 'Ma Shan Zheng', cursive;
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 2px;
+  }
+  .cart-panel .fire-btn:active { transform: scale(0.95); }
+
+  @media (min-width: 640px) {
+    body { border-left: 1px solid rgba(255,255,255,0.04); border-right: 1px solid rgba(255,255,255,0.04); }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loading">
+  <div class="loading-fire">
+    <div class="charcoal"></div><div class="charcoal"></div><div class="charcoal"></div>
+    <div class="charcoal"></div><div class="charcoal"></div>
+    <div class="lf"></div><div class="lf"></div><div class="lf"></div><div class="lf"></div>
+  </div>
+  <div class="loading-text">阿毛正在生火 ...</div>
+</div>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-left">
+    <div class="header-logo">阿毛烧烤 <small>· 福大</small></div>
+  </div>
+  <div class="header-status">
+    <div class="fire-dot"></div>
+    营业中
+  </div>
+</div>
+
+<!-- ===== TAB 1: ORDER ===== -->
+<div class="tab-content active" data-tab="order">
+  <div class="hero-dish">
+    <div class="badge">🔥 阿毛绝活 · 桌边表演</div>
+    <div class="name"><em>喷火</em>爆炸虾</div>
+    <div class="desc">明虾去壳，热油三次淋淋淋<br>最后一次火焰冲天，全场欢呼</div>
+    <div class="price-tag">¥68 <small style="font-size:13px;color:var(--text-dimmer)">/ 份</small></div>
+    <div class="fire-anim">🔥</div>
+  </div>
+
+  <div class="cat-tabs" id="cat-tabs">
+    <div class="cat-tab active" data-cat="all">🔥 全部</div>
+    <div class="cat-tab" data-cat="signature">阿毛绝活</div>
+    <div class="cat-tab" data-cat="bbq">山里烤串</div>
+    <div class="cat-tab" data-cat="soup">药膳煨汤</div>
+    <div class="cat-tab" data-cat="wine">采药酒</div>
+    <div class="cat-tab" data-cat="side">山野小食</div>
+  </div>
+
+  <div class="menu-list" id="menu-list"></div>
+
+  <div class="cart-panel" id="cart-panel">
+    <div>
+      <div class="info">已选 <strong id="cart-count">0</strong> 件</div>
+    </div>
+    <div class="total" id="cart-total">¥0</div>
+    <button class="fire-btn" onclick="checkout()">开火 · 下单</button>
+  </div>
+</div>
+
+<!-- ===== TAB 2: ABOUT ===== -->
+<div class="tab-content" data-tab="about">
+  <div class="about-hero">
+    <div class="brand">阿毛烧烤</div>
+    <div class="sub">福州大学城 · 二十二年老味</div>
+    <div class="slogan">
+      从福大边上的铁皮棚到如今一屋烟火<br>
+      阿毛还是那个阿毛 <em>光膀子 · 爱进山 · 会采药</em>
+    </div>
+  </div>
+
+  <div class="section-title" style="font-family:'Ma Shan Zheng',cursive;font-size:18px;color:var(--gold-light);padding: 8px 16px;">🌲 二十二年山火路</div>
+  <div class="tl">
+    <div class="tl-item">
+      <div class="year">2005</div>
+      <div class="desc"><strong>福大门口的摊子</strong><br>三明大田来的小伙子，一辆三轮车一个铁皮炉，五样烤串一箱啤酒，开整。</div>
+    </div>
+    <div class="tl-item">
+      <div class="year">2010</div>
+      <div class="desc"><strong>喷火爆炸虾诞生</strong><br>阿毛琢磨出淋油绝活，火焰蹿起那一瞬间，整条街都安静了，然后炸了锅。</div>
+    </div>
+    <div class="tl-item">
+      <div class="year">2016</div>
+      <div class="desc"><strong>搬进店面</strong><br>老客太多，终于租了个门面。搬店第一件事——后院砌石头烤炉，跟山里一样。</div>
+    </div>
+    <div class="tl-item">
+      <div class="year">2020</div>
+      <div class="desc"><strong>名人闻香而来</strong><br>歌手、导演、运动员……大半个演艺圈的人路过福州都摸到这里。阿毛还是光着膀子给他们烤串。</div>
+    </div>
+    <div class="tl-item">
+      <div class="year">2026</div>
+      <div class="desc"><strong>山火不灭</strong><br>阿毛说："只要还有人想坐在火堆边吃肉喝酒，我就烤。"</div>
+    </div>
+  </div>
+
+  <div class="section-title" style="font-family:'Ma Shan Zheng',cursive;font-size:18px;color:var(--gold-light);padding: 16px 16px 8px;">🎤 来过的朋友</div>
+  <div class="famous-scroll" id="famous-scroll"></div>
+
+  <div class="section-title" style="font-family:'Ma Shan Zheng',cursive;font-size:18px;color:var(--gold-light);padding: 8px 16px;">🍶 阿毛采药地图</div>
+  <div class="wine-section" id="wine-section"></div>
+</div>
+
+<!-- ===== TAB 3: EVENTS ===== -->
+<div class="tab-content" data-tab="events">
+  <div class="event-hero">
+    <div class="title">🎉 包场 · 聚会 · 搞事情</div>
+    <div class="sub">阿毛这儿能办的事比你想象的多<br>班级搓一顿、生日派对、公司团建、甚至求婚<br>阿毛亲自策划，保证每个人都不玩手机</div>
+  </div>
+
+  <div class="event-grid" id="event-grid"></div>
+
+  <div class="event-form">
+    <div class="form-title">📝 预约活动</div>
+    <input type="text" placeholder="你的名字 / 称呼">
+    <input type="tel" placeholder="手机号">
+    <select>
+      <option>—— 选一个套餐 ——</option>
+      <option>🎂 生日野营 ¥888/10人</option>
+      <option>🏫 班级搓一顿 ¥588/10人</option>
+      <option>🏢 公司团建 ¥1688/20人</option>
+      <option>💍 求婚策划 联系阿毛</option>
+    </select>
+    <input type="date" placeholder="日期">
+    <textarea placeholder="还有什么想说的？比如想吃啥、几个人、有没有人过敏……"></textarea>
+    <button class="submit-btn" onclick="alert('🎉 信号已发出！阿毛收到后会第一时间联系你。\n（催他就直接打电话 13400539010）')">发给阿毛</button>
+  </div>
+</div>
+
+<!-- ===== TAB 4: BOSS ===== -->
+<div class="tab-content" data-tab="boss">
+  <div class="boss-header">
+    <div class="avatar-lg">👨‍🍳</div>
+    <div class="name">阿毛</div>
+    <div class="nick">aka 福州最野的烧烤店老板</div>
+    <div class="tags">
+      <span>🏔️ 每年进山4个月</span>
+      <span>🍶 自采药酒</span>
+      <span>🔥 喷火绝活</span>
+      <span>🎸 会弹吉他</span>
+      <span>🧗 野外求生</span>
+    </div>
+  </div>
+
+  <div class="boss-story-box">
+    <div class="label">
+      🎙️ 阿毛说
+      <span class="play" onclick="nextBossStory()">▶ 换一句</span>
+    </div>
+    <div class="text" id="boss-story-text">
+      "我这人坐不住。店里忙到凌晨两三点，眯俩小时，天不亮就开车进山了。<em>钓钓鱼，找找草药</em>，中午回来继续烤串。"
+    </div>
+  </div>
+
+  <div class="boss-story-box">
+    <div class="label">📖 阿毛的日常</div>
+    <div class="text" style="font-size:12px;">
+      🕐 <strong>凌晨 2:00</strong> 送走最后一桌客人<br>
+      🕐 <strong>凌晨 4:30</strong> 开车进山<br>
+      🕐 <strong>早上 7:00</strong> 在溪边生火煮茶钓鱼<br>
+      🕐 <strong>上午 10:00</strong> 采草药、挖山货<br>
+      🕐 <strong>下午 2:00</strong> 回店备料<br>
+      🕐 <strong>下午 5:00</strong> 开火营业
+    </div>
+  </div>
+
+  <div class="boss-story-box">
+    <div class="label">🏅 阿毛的荣誉墙</div>
+    <div class="text" style="font-size:12px;line-height:2;">
+      🏆 福州大学城必吃榜 · 连续8年<br>
+      🏆 福州夜宵传奇店 · 2023<br>
+      🏆 喷火爆炸虾 · 全网播放量破5000万<br>
+      🏆 被顾客称为"福州最有灵魂的烧烤店"
+    </div>
+  </div>
+
+  <div class="section-title" style="font-family:'Ma Shan Zheng',cursive;font-size:16px;color:var(--gold-light);padding: 8px 16px 4px;">📸 阿毛的山里日子</div>
+  <div class="boss-gallery">
+    <div class="pic" style="background:linear-gradient(0deg,rgba(0,0,0,0.5),transparent),url('https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=200&h=150&fit=crop')">
+      <span class="cap">大别山采药途中</span>
+    </div>
+    <div class="pic" style="background:linear-gradient(0deg,rgba(0,0,0,0.5),transparent),url('https://images.unsplash.com/photo-1478737270239-2f02b77fc618?w=200&h=150&fit=crop')">
+      <span class="cap">后院的石头烤炉</span>
+    </div>
+    <div class="pic" style="background:linear-gradient(0deg,rgba(0,0,0,0.5),transparent),url('https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=200&h=150&fit=crop')">
+      <span class="cap">喷火爆炸虾现场</span>
+    </div>
+    <div class="pic" style="background:linear-gradient(0deg,rgba(0,0,0,0.5),transparent),url('https://images.unsplash.com/photo-1529193591184-901e1fe5c655?w=200&h=150&fit=crop')">
+      <span class="cap">阿毛特制烤排</span>
+    </div>
+  </div>
+
+  <div class="boss-story-box">
+    <div class="label">📍 来找阿毛</div>
+    <div class="text" style="font-size:13px;line-height:1.8;">
+      福州市闽侯县溪源宫路106-5号<br>
+      🕐 营业时间：17:00 - 凌晨（阿毛不走人不关）<br>
+      📞 13400539010<br>
+      <span style="font-size:11px;color:var(--text-dimmer);">（建议提前打电话，阿毛可能在山上信号不好）</span>
+    </div>
+  </div>
+</div>
+
+<!-- TAB BAR -->
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="order">
+    <span class="icon">🔥</span>
+    <span class="label">点单</span>
+    <span class="cart-badge" id="tab-cart-badge" style="display:none">0</span>
+  </button>
+  <button class="tab-btn" data-tab="about">
+    <span class="icon">🏕️</span>
+    <span class="label">关于</span>
+  </button>
+  <button class="tab-btn" data-tab="events">
+    <span class="icon">🎉</span>
+    <span class="label">活动</span>
+  </button>
+  <button class="tab-btn" data-tab="boss">
+    <span class="icon">🧑</span>
+    <span class="label">老板</span>
+  </button>
+</div>
+
+<!-- MODAL -->
+<div class="modal" id="modal">
+  <div class="overlay" onclick="closeModal()"></div>
+  <div class="box">
+    <button class="close" onclick="closeModal()">✕</button>
+    <div class="mtitle" id="modal-title"></div>
+    <div class="mbody" id="modal-body"></div>
+  </div>
+</div>
+
+<!-- CART TOAST -->
+<div class="cart-toast" id="cart-toast">已加入山货筐</div>
+
+<script>
+  // ===== DATA =====
+  const menuData = [
+    { name: '🔥 喷火爆炸虾', origin: '阿毛原创 · 桌边表演', cat: 'signature', price: 68, tag: '🔥必点', img: 'https://images.unsplash.com/photo-1625943553852-781c6dd46faa?w=150&h=150&fit=crop', story: '这是阿毛的成名绝活。明虾去头开背，底下铺满干辣椒和蒜蓉，热油分三次淋上去——最后一瓢火焰窜起半米高，全场手机举起来。阿毛说："第一次做这个菜的时候差点把棚点了，现在闭着眼睛都不会洒。"', featured: true },
+    { name: '香辣海鲜会', origin: '超大份 · 适合3-4人', cat: 'signature', price: 188, tag: '🌊招牌', img: 'https://images.unsplash.com/photo-1559737558-2f5a35f4523b?w=150&h=150&fit=crop', story: '虾菇、明虾、淡菜、花甲、鱿鱼、三眼蟹……满满一盆。阿毛说："海边的朋友来吃过都说，这比他们当地的海鲜大咖还实在。"三眼蟹只只带红膏。', featured: true },
+    { name: '火焰黑椒肥牛', origin: '6分熟 · 铁板上桌', cat: 'signature', price: 48, tag: '🔥表演', img: 'https://images.unsplash.com/photo-1558030006-450675393462?w=150&h=150&fit=crop', story: '黑椒肥牛在铁板上滋滋响，上桌时还带着火焰。阿毛说这个菜要趁最烫的时候吃，凉了就没那个魂了。', featured: true },
+    { name: '火焰红螺', origin: '巨大一颗 · 蒜蓉烤', cat: 'signature', price: 36, tag: '🔥推荐', img: 'https://images.unsplash.com/photo-1583224223651-3a19d7e1eb5f?w=150&h=150&fit=crop', story: '红螺比拳头还大，蒜蓉铺满，炭火烤到冒泡。阿毛说这种螺只有福州本地市场买得到，别处吃不着。' },
+    { name: '碳烤生蚝', origin: '湛江生蚝 · 阿毛特调蒜蓉', cat: 'bbq', price: 48, tag: '🌊鲜', img: 'https://images.unsplash.com/photo-1574696035115-0a1e1e7d0c7d?w=150&h=150&fit=crop', story: '阿毛用的湛江生蚝，一个个都是现开现烤。蒜蓉是他自己调的，加了秘密比例的山胡椒和野葱。', featured: true },
+    { name: '野葱羊肉串', origin: '跟内蒙牧民学的', cat: 'bbq', price: 28, tag: '🌿山野', img: 'https://images.unsplash.com/photo-1603360946369-dc9bb6258143?w=150&h=150&fit=crop', story: '阿毛去内蒙跟牧民学了一招：羊肉串一定要夹着野葱一起穿，野葱的汁水渗进肉里，不用多调料。' },
+    { name: '烟熏猪肋排', origin: '山核桃木+松枝 熏6小时', cat: 'bbq', price: 68, tag: '🏆招牌', img: 'https://images.unsplash.com/photo-1529193591184-901e1fe5c655?w=150&h=150&fit=crop', story: '山核桃木和松枝慢熏六小时，中间加了陈皮和野花椒。每次熏排骨的时候整条街都是这个味。' },
+    { name: '山胡椒五花肉', origin: '大别山老猎人的方子', cat: 'bbq', price: 38, tag: '🏆私藏', img: 'https://images.unsplash.com/photo-1558030006-450675393462?w=150&h=150&fit=crop', story: '09年阿毛在大别山跟老猎人学的，用十三种山胡椒腌肉，外面吃不到这个味。' },
+    { name: '岩烤土豆', origin: '后院石头炉烤的', cat: 'side', price: 12, tag: '🪨必点', img: 'https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=150&h=150&fit=crop', story: '阿毛在后院用石头垒了个烤炉，土豆埋在热石堆里烤两个钟头，掰开冒热气，又面又甜。' },
+    { name: '山泉水土鸡炖草根', origin: '河田鸡+野生牛奶根', cat: 'soup', price: 58, tag: '🍲药膳', img: 'https://images.unsplash.com/photo-1598515214211-89d3c73ae83b?w=150&h=150&fit=crop', story: '阿毛自己进山挖的野生牛奶根和麦冬，配上河田鸡，用竹筒装山泉水炖。汤是清甜的，喝完回甘。', featured: true },
+    { name: '野生灵芝煲筒骨', origin: '武夷山灵芝+筒骨', cat: 'soup', price: 68, tag: '🍄限量', img: 'https://images.unsplash.com/photo-1553163147-622ab57be1c7?w=150&h=150&fit=crop', story: '灵芝是阿毛每年春天去武夷山桐木关采的。汤有点微苦，但喝完特别舒服。阿毛说这是他的"体力恢复剂"。' },
+    { name: '石瓜子炖小肠', origin: '宁德古田做法', cat: 'soup', price: 38, tag: '🌿特色', img: 'https://images.unsplash.com/photo-1547592166-23ac45744acd?w=150&h=150&fit=crop', story: '野生石瓜子配上新鲜小肠，宁德古田一带酒席上常见的青草汤。阿毛说这个汤最解酒。' },
+    { name: '大别山野山参酒', origin: '秋采野山参+土蜂蜜', cat: 'wine', price: 38, tag: '🍶药酒', img: 'https://images.unsplash.com/photo-1574097656146-0b43b7660cb6?w=150&h=150&fit=crop', story: '每年秋天去大别山采野山参，虽然个头不大但药性足。配上土蜂蜜和山泉水泡，入口甜后劲大——老客叫它"三碗不过岗"。' },
+    { name: '神农架七叶酒', origin: '夏采七叶一枝花', cat: 'wine', price: 58, tag: '🍶限定', img: 'https://images.unsplash.com/photo-1574097656146-0b43b7660cb6?w=150&h=150&fit=crop', story: '跟土家族药师学的，七叶一枝花长在海拔1500米以上背阴坡。泡出来的酒有淡淡药香，不苦回甘。' },
+    { name: '武夷山灵芝酒', origin: '春采灵芝+山泉水', cat: 'wine', price: 68, tag: '🏆镇店', img: 'https://images.unsplash.com/photo-1574097656146-0b43b7660cb6?w=150&h=150&fit=crop', story: '桐木关的灵芝长在原始森林朽木上，一棵长三年。泡出来色如琥珀，有坚果和木香。阿毛一年只泡两坛。' },
+  ];
+
+  const famousDiners = [
+    { name: '陈赫', title: '福州老乡 · 演员', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&h=80&fit=crop&crop=face', quote: '"回福州必来。"', story: '陈赫回福州经常摸到阿毛这儿。有一回带了一桌人，阿毛专门给他烤了只全羊。陈赫发了个朋友圈，那条下面有两百多人问地址。' },
+    { name: '林姓歌手', title: '独立音乐人', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=80&h=80&fit=crop&crop=face', quote: '"半坛灵芝酒写出了三首歌。"', story: '18年巡演路过福州，被当地朋友拉来吃夜宵。喝了半坛灵芝酒后来了灵感，当晚回去写了三首demo，后来全收进了专辑。' },
+    { name: '王姓探险家', title: '知名户外运动家', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=80&h=80&fit=crop&crop=face', quote: '"这味儿像在雪山脚下生火。"', story: '登完四姑娘山后专程绕道来福州。他和阿毛聊了一整夜野外生存，临走阿毛送了他一壶野山参酒。' },
+    { name: '张姓美食家', title: '美食评论人', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80&h=80&fit=crop&crop=face', quote: '"不写了，我自己来吃。"', story: '本来是要写探店文章的。吃了两轮后把笔记本合上，说："这地儿不该写成文章，该藏在山里。"后来他每年都自己悄悄来。' },
+    { name: '赵姓演员', title: '实力派演员', avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=80&h=80&fit=crop&crop=face', quote: '"阿毛比我会演。"', story: '拍戏间歇来吃过一次，之后每回来这个城市必到。他说阿毛是他见过最有江湖气的人，不演戏可惜了。' },
+  ];
+
+  const eventPackages = [
+    { emoji: '🎂', name: '生日野营', price: '¥888/10人', includes: '喷火表演 · 药酒品鉴 · 阿毛特制祝福菜 · 气球布置' },
+    { emoji: '🏫', name: '班级搓一顿', price: '¥588/10人', includes: '啤酒畅饮 · 阿毛互动游戏 · 魔鬼辣椒挑战' },
+    { emoji: '🏢', name: '公司团建', price: '¥1688/20人', includes: '包场 · 阿毛故事会 · 草药辨识体验 · 烤全羊' },
+    { emoji: '💍', name: '求婚策划', price: '联系阿毛', includes: '阿毛亲自策划 · 喷火表白 · 全场配合演戏' },
+  ];
+
+  const wineItems = [
+    { icon: '🏔️', name: '大别山 · 野山参酒', note: '秋采野山参 + 土蜂蜜 + 山泉水', price: '¥38/杯' },
+    { icon: '🌿', name: '神农架 · 七叶一枝花酒', note: '夏采 · 土家族药师古方', price: '¥58/杯' },
+    { icon: '🌲', name: '武夷山 · 灵芝酒', note: '春采 · 三年灵芝 · 一年两坛', price: '¥68/杯' },
+  ];
+
+  const bossStories = [
+    '"我这人坐不住。店里忙到凌晨两三点，眯俩小时，天不亮就开车进山了。<em>钓钓鱼，找找草药</em>，中午回来继续烤串。"',
+    '"那个喷火爆炸虾是怎么来的？有一回我油温没控好，瓢下去火<em>呼</em>一下窜起来，客人全站起来了。我心想完了，结果他们鼓掌了。"',
+    '"大别山那个老猎人今年应该八十多了。每年秋天我都去看他，带两条烟两瓶酒。他教我的腌肉方子，<em>我店里的招牌到现在还是它</em>。"',
+    '"灵芝酒一年只能泡两坛，因为武夷山那个地方的灵芝一年就长那么多。不是我小气，是<em>山里的事情急不来</em>。"',
+    '"野外求生教会我最大的事：<em>好吃的东西不用太多调料</em>。山里的东西，火上一烤，撒点盐，就是最好的。"',
+    '"我这店开了二十二年，菜单上换过一百多道菜。<em>但炭火炉子没换过</em>，烤法也没换。人换了个活法，味道不能变。"',
+    '"有一次半夜快收摊了，进来一个姑娘，点了一桌菜。我问她一个人吃这么多？她说 <em>今天分手了，想把难过烤熟吃掉</em>。我送了份甜品，写了她一句祝福。"',
+    '"很多人问我怎么不搞加盟。<em>加盟了谁帮我管山里的草药？</em>就这一家店，挺好的。"',
+  ];
+  let bsIdx = 0;
+
+  // ===== RENDER MENU =====
+  function renderMenu(cat) {
+    const list = document.getElementById('menu-list');
+    const items = cat === 'all' ? menuData : menuData.filter(m => m.cat === cat);
+    if (items.length === 0) {
+      list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-dimmer);font-size:13px;">这个分类还没上架，问问阿毛能不能做</div>';
+      return;
+    }
+    list.innerHTML = items.map((m, i) => `
+      <div class="menu-item" onclick="showStory('${m.name}', '${m.story.replace(/'/g, "\\'")}')">
+        <div class="thumb" style="background-image:url(${m.img})">
+          ${m.tag ? `<span class="tag">${m.tag}</span>` : ''}
+        </div>
+        <div class="info">
+          <div class="name">
+            ${m.name}
+            <span class="story-icon">📖</span>
+          </div>
+          <div class="origin">${m.origin}</div>
+          <div class="price-row">
+            <span class="price">¥${m.price} <small>/ 份</small></span>
+            <button class="add-btn" onclick="event.stopPropagation(); addToCart('${m.name}', ${m.price})">+</button>
+          </div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // ===== RENDER FAMOUS =====
+  function renderFamous() {
+    const container = document.getElementById('famous-scroll');
+    container.innerHTML = famousDiners.map(d => `
+      <div class="famous-card" onclick="showStory('${d.name}', '${d.story.replace(/'/g, "\\'")}')">
+        <div class="avatar" style="background-image:url(${d.avatar})"></div>
+        <div class="name">${d.name}</div>
+        <div class="title">${d.title}</div>
+        <div class="quote">${d.quote}</div>
+      </div>
+    `).join('');
+  }
+
+  // ===== RENDER WINE =====
+  function renderWine() {
+    const sec = document.getElementById('wine-section');
+    sec.innerHTML = wineItems.map(w => `
+      <div class="wi" onclick="showStory('${w.name}', '${(w.name + '：' + w.note).replace(/'/g, "\\'")}')">
+        <div class="icon">${w.icon}</div>
+        <div class="info">
+          <div class="name">${w.name}</div>
+          <div class="note">${w.note}</div>
+        </div>
+        <div class="pr">${w.price}</div>
+      </div>
+    `).join('');
+  }
+
+  // ===== RENDER EVENTS =====
+  function renderEvents() {
+    const grid = document.getElementById('event-grid');
+    grid.innerHTML = eventPackages.map(e => `
+      <div class="event-card" onclick="showStory('${e.name}', '${e.includes.replace(/'/g, "\\'")}')">
+        <div class="emoji">${e.emoji}</div>
+        <div class="name">${e.name}</div>
+        <div class="price">${e.price}</div>
+        <div class="includes">${e.includes}</div>
+      </div>
+    `).join('');
+  }
+
+  // ===== CATEGORY TABS =====
+  document.querySelectorAll('.cat-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.cat-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      renderMenu(tab.dataset.cat);
+    });
+  });
+
+  // ===== BOTTOM TAB BAR =====
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelector(`[data-tab="${btn.dataset.tab}"]`).classList.add('active');
+    });
+  });
+
+  // ===== CART =====
+  let cart = [];
+  function addToCart(name, price) {
+    cart.push({ name, price });
+    updateCart();
+    showToast(`${name} 已加入`);
+  }
+  function updateCart() {
+    const count = cart.length;
+    const total = cart.reduce((s, i) => s + i.price, 0);
+    document.getElementById('cart-count').textContent = count;
+    document.getElementById('cart-total').textContent = `¥${total}`;
+    document.getElementById('tab-cart-badge').textContent = count;
+    document.getElementById('tab-cart-badge').style.display = count > 0 ? 'flex' : 'none';
+    document.getElementById('cart-panel').classList.toggle('show', count > 0);
+  }
+  function checkout() {
+    if (cart.length === 0) return;
+    const total = cart.reduce((s, i) => s + i.price, 0);
+    const names = [...new Set(cart.map(i => i.name))].join('、');
+    alert(`🔥 订单已传给阿毛！\n\n${names}\n\n共计 ¥${total}\n\n🧑‍🍳 阿毛说："收到，正在磨刀，到了就烤。"`);
+    cart = [];
+    updateCart();
+  }
+  function showToast(msg) {
+    const t = document.getElementById('cart-toast');
+    t.textContent = `✅ ${msg}`;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 1500);
+  }
+
+  // ===== MODAL =====
+  function showStory(title, body) {
+    document.getElementById('modal-title').textContent = title;
+    document.getElementById('modal-body').innerHTML = `<p>${body}</p>`;
+    document.getElementById('modal').classList.add('show');
+  }
+  function closeModal() {
+    document.getElementById('modal').classList.remove('show');
+  }
+
+  // ===== BOSS STORY =====
+  function nextBossStory() {
+    bsIdx = (bsIdx + 1) % bossStories.length;
+    document.getElementById('boss-story-text').innerHTML = bossStories[bsIdx];
+  }
+  setInterval(() => { if (Math.random() > 0.7) nextBossStory(); }, 10000);
+
+  // ===== INIT =====
+  renderMenu('all');
+  renderFamous();
+  renderWine();
+  renderEvents();
+
+  setTimeout(() => {
+    document.getElementById('loading').classList.add('hide');
+  }, 1800);
+</script>
+</body>
+</html>
