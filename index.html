@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>阿毛烧烤 · 山火点单</title>
 <!-- No external fonts - using system fonts for instant load in China -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   :root {
@@ -876,11 +875,15 @@
     });
   });
 
-  // ===== SUPABASE =====
-  let supabase = null;
+  // ===== SUPABASE (lazy init, won't block page load) =====
   const SUPABASE_URL = 'https://kpdzliicwddunewzhwqm.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_mtif-iW5dFnU2FZWjPyJMA_fEZhfjNh';
-  try { if (window.supabase) supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e) {}
+  let _supabase = null;
+  function getSupabase() {
+    if (_supabase) return _supabase;
+    try { if (window.supabase) _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e) {}
+    return _supabase;
+  }
 
   // ===== CART =====
   let cart = [];
@@ -920,8 +923,9 @@
       alert(`🔥 订单已记录！\n\n${names}\n共计 ¥${total}\n\n⚠️ 网络不稳定，请告知阿毛`);
     };
 
-    if (supabase) {
-      supabase.from('orders').insert(order).then(({ error }) => { error ? fail() : success(); });
+    const sb = getSupabase();
+    if (sb) {
+      sb.from('orders').insert(order).then(({ error }) => { error ? fail() : success(); });
     } else {
       fail();
     }
@@ -1051,5 +1055,6 @@
     document.getElementById('loading').classList.add('hide');
   }, 1800);
 </script>
+<script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </body>
 </html>
