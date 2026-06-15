@@ -156,6 +156,8 @@ const supabase = window.supabase.createClient(
 const POLL_INTERVAL = 2000;
 let soundOn = true;
 let knownOrders = new Set();
+let hiddenOrders = JSON.parse(localStorage.getItem('amao_kitchen_hidden') || '[]'); // [{id, action}]
+let hiddenIds = new Set(hiddenOrders.map(h => h.id));
 
 function toggleSound() {
   soundOn = !soundOn;
@@ -167,16 +169,14 @@ function beep() {
   if (!soundOn) return;
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
+    const osc = ctx.createOscillator(); const gain = ctx.createGain();
     osc.connect(gain); gain.connect(ctx.destination);
     osc.type = 'square';
     osc.frequency.setValueAtTime(800, ctx.currentTime);
     osc.frequency.setValueAtTime(1200, ctx.currentTime + 0.1);
     gain.gain.setValueAtTime(0.3, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.5);
+    osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.5);
   } catch(e) {}
 }
 
@@ -186,9 +186,20 @@ function showToast() {
   setTimeout(() => t.classList.remove('show'), 2500);
 }
 
-function formatId(id) {
-  // id is timestamp like 1718840000000 -> show last 6 digits
-  return '#' + String(id).slice(-6);
+function fmtTime(iso) {
+  if (!iso) return '';
+  const m = iso.match(/T(\d{2}):(\d{2})/);
+  if (m) return m[1] + ':' + m[2];
+  return '';
+}
+
+function fmtId(id) { return '#' + String(id).slice(-6); }
+
+function markOrder(id, action) {
+  hiddenOrders.push({ id, action, time: new Date().toISOString() });
+  localStorage.setItem('amao_kitchen_hidden', JSON.stringify(hiddenOrders.slice(-100)));
+  hiddenIds.add(id);
+  poll();
 }
 
 function renderOrders(orders) {
@@ -196,39 +207,36 @@ function renderOrders(orders) {
   const empty = document.getElementById('empty');
   const countEl = document.getElementById('count');
 
-  countEl.textContent = orders.length;
+  // Filter out hidden (done/cancelled)
+  const visible = orders.filter(o => !hiddenIds.has(o.id));
+  countEl.textContent = visible.length;
 
-  if (!orders.length) {
+  if (!visible.length) {
     empty.style.display = 'block';
     board.innerHTML = '';
     return;
   }
   empty.style.display = 'none';
 
-  board.innerHTML = orders.map((o) => {
+  board.innerHTML = visible.map((o) => {
     const isNew = !knownOrders.has(o.id);
-    const cls = o.status === 'done' ? 'order-card done' : (isNew ? 'order-card new' : 'order-card');
     return `
-      <div class="${cls}" data-id="${o.id}">
+      <div class="order-card${isNew ? ' new' : ''}" data-id="${o.id}">
         <div class="order-no">
-          ${formatId(o.id)}
-          ${o.status === 'done' ? '<span class="tag" style="background:#166534;color:#4ade80">完成</span>' : ''}
-          ${isNew && o.status !== 'done' ? '<span class="tag">新</span>' : ''}
-          ${o.status === 'cancelled' ? '<span class="tag" style="background:#450a0a;color:#fca5a5">已取消</span>' : ''}
+          ${fmtId(o.id)}
+          ${isNew ? '<span class="tag">新</span>' : ''}
         </div>
         <div class="order-items">
           ${(o.items||[]).map(i => `<span>${i.n} ×1</span>`).join('')}
         </div>
         <div class="order-foot">
           <span class="order-total">¥${o.total}</span>
-          <span class="order-time">${o.time||''}</span>
+          <span class="order-time">${fmtTime(o.created_at)}</span>
         </div>
-        ${o.status === 'new' || !o.status ? `
         <div class="order-actions">
-          <button class="btn-done" onclick="updateOrder(${o.id},'done')">✅ 完成</button>
-          <button class="btn-cancel" onclick="updateOrder(${o.id},'cancelled')">✕ 取消</button>
+          <button class="btn-done" onclick="markOrder(${o.id},'done')">✅ 完成</button>
+          <button class="btn-cancel" onclick="markOrder(${o.id},'cancelled')">✕ 取消</button>
         </div>
-        ` : ''}
       </div>
     `;
   }).join('');
@@ -236,41 +244,27 @@ function renderOrders(orders) {
   orders.forEach(o => knownOrders.add(o.id));
 }
 
-async function updateOrder(id, status) {
-  try {
-    await supabase.from('orders').update({ status }).eq('id', id);
-    poll();
-  } catch(e) {}
-}
-
 async function poll() {
   try {
     const { data: orders, error } = await supabase.from('orders')
       .select('*')
-      .neq('status', 'cancelled')
       .order('id', { ascending: false })
       .limit(50);
 
     if (error || !orders) return;
 
-    const newOrders = orders.filter(o => !knownOrders.has(o.id));
-    if (newOrders.length > 0) {
-      beep();
-      showToast();
-    }
+    const newOrders = orders.filter(o => !knownOrders.has(o.id) && !hiddenIds.has(o.id));
+    if (newOrders.length > 0) { beep(); showToast(); }
 
     renderOrders(orders);
   } catch(e) {}
 }
 
-// Start
 poll();
 setInterval(poll, POLL_INTERVAL);
 
 document.addEventListener('click', () => {
-  if (window.AudioContext || window.webkitAudioContext) {
-    new (window.AudioContext || window.webkitAudioContext)();
-  }
+  if (window.AudioContext || window.webkitAudioContext) { new (window.AudioContext || window.webkitAudioContext)(); }
 }, { once: true });
 </script>
 </body>
